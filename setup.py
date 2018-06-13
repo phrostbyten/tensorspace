@@ -44,7 +44,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'tensorspace=tensorspace.__main__',
+            'tensorspace=tensorspace.__main__:main',
         ],
     },
     cmdclass = {'test': PyTest}
