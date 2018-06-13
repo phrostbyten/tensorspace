@@ -20,7 +20,7 @@ class PyTest(test):
 # The actual setup metadata
 setup(
     name='tensorspace',
-    version='0.0.1',
+    version='0.0.2',
     description='A reference implementation of an AI lab.',
     long_description=open("README.rst").read(),
     keywords='machine_learning artificial_intelligence devops',
