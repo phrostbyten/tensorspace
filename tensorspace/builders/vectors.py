@@ -42,7 +42,7 @@ def CaptionVectors():
             for caps, capids in tqdm(emit_examples(BATCH_SIZE), unit=' tensor blocks'):
                 vecs = sess.run(str2vec, feed_dict={'sent_input:0': caps})
                 for capid, vec in zip(capids, vecs):
-                    row = Vector(vec=vec, caption_id=capid)
+                    row = Vector(vec=vec.tobytes(), caption_id=capid)
                     session.add(row)
                     session.flush()
     session.commit()
