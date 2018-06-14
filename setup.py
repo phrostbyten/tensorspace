@@ -20,7 +20,7 @@ class PyTest(test):
 # The actual setup metadata
 setup(
     name='tensorspace',
-    version='0.0.2',
+    version='0.0.3',
     description='A reference implementation of an AI lab.',
     long_description=open("README.rst").read(),
     keywords='machine_learning artificial_intelligence devops',
@@ -44,7 +44,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'tensorspace=tensorspace.__main__:main',
+            'tensorspace = tensorspace.__main__:main',
         ],
     },
     cmdclass = {'test': PyTest}
