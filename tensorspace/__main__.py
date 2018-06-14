@@ -1,9 +1,11 @@
 from tensorspace.builders import Coco, CaptionVectors
+from tensorspace.model import get_config_single_host
 from argparse import ArgumentParser
 
 def do_up(action):
-    Coco()
-    CaptionVectors()
+    session = get_config_single_host(initialize=True)
+    Coco(session)
+    CaptionVectors(session)
 
 def main():
     parser = ArgumentParser()
@@ -14,4 +16,5 @@ def main():
     else:
         parser.error(f'Unsupported action "{parse.action}".')
 
-main()
+if __name__ == '__main__':
+    main()
