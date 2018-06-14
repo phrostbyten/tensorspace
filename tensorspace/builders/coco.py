@@ -14,7 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from tqdm import tqdm
 
 from tensorspace.model import (Caption, Category, ControlledImport, Dataset,
-                              Image, License, Object)
+                              Image, License, Object, ImageFileType)
 from tensorspace.util import log
 
 
@@ -23,10 +23,11 @@ ANNOTATIONS_URL = 'http://images.cocodataset.org/annotations/annotations_trainva
 
 
 class CocoImport(ControlledImport):
-    def __init__(self):
-        super(CocoImport, self).__init__('coco', has_files=True)
+    def __init__(self, session):
+        super(CocoImport, self).__init__(session, has_files=True)
 
     def create_database(self):
+        log(f'Getting COCO annotations from {ANNOTATIONS_URL}')
         zip = ZipFile(BytesIO(urlopen(ANNOTATIONS_URL).read()))
         session = self.session
 
@@ -34,15 +35,18 @@ class CocoImport(ControlledImport):
             name='COCO',
             desc='COCO is a large-scale object detection, segmentation, and captioning dataset.',
             url='http://cocodataset.org/')
-        cocoid = dsinfo.id
         session.add(dsinfo)
+        session.commit()
+        cocoid = dsinfo.id
+        
+        surrigate = {}
 
         def populate_images(index, is_training=False):
             for image in tqdm(
                     index['images'], desc='Image metadata', unit=' rows'):
                 row = Image(
-                    id=image['id'],
                     dataset_id=cocoid,
+                    filetype=ImageFileType.JPEG,
                     src_filename=image['file_name'],
                     url=image['coco_url'],
                     license_id=image['license'],
@@ -51,22 +55,24 @@ class CocoImport(ControlledImport):
                         image['date_captured']),
                     orig_url=image['flickr_url'])
                 session.add(row)
-            session.flush()
+                session.commit()
+                surrigate[image['id']] = row.id 
 
         def populate_annotations(index):
             for i, annotation in enumerate(
                     tqdm(index['annotations'], desc='Annotations', unit=' rows')):
                 if annotation.get('bbox'):
                     row = Object(
-                        id=annotation['id'],
-                        image_id=annotation['image_id'],
+                        image_id=surrigate[annotation['image_id']],
                         category_id=annotation['category_id'],
                         x1=annotation['bbox'][0],
                         y1=annotation['bbox'][1],
                         x2=annotation['bbox'][2],
                         y2=annotation['bbox'][3])
                 else:
-                    row = Caption(**annotation)
+                    row = Caption(
+                        image_id=surrigate[annotation['image_id']],
+                        caption=annotation['caption'])
                 session.add(row)
                 if (i % 500) == 0:
                     session.flush()
@@ -104,8 +110,9 @@ class CocoImport(ControlledImport):
 
     def create_files(self):
         log('Downloading images')
-        for url, filename in tqdm(self.session.query(
-                Image.url, Image.src_filename), desc='Images downloaded', unit=' imgs'):
+        for url, imgid in tqdm(self.session.query(
+                Image.url, Image.id), desc='Images downloaded', unit=' imgs'):
+            filename = str(imgid) + '.jpg'
             if not self.exists(filename):
                 try:
                     urlretrieve(url, self.path(filename))
@@ -115,13 +122,14 @@ class CocoImport(ControlledImport):
 
 
     def create(self):
-        res = self.session.query(Dataset.name).filter(Dataset.name == 'COCO')
+        res = self.session.query(Dataset.name).filter(Dataset.name == 'COCO').first()
         if not res:
             self.create_database()
         self.create_files()
 
-def Coco():
-    CocoImport().create()
+def Coco(session):
+    CocoImport(session).create()
 
 if __name__ == '__main__':
-    Coco()
+    from tensorspace.model import get_config_single_host
+    Coco(get_config_single_host(initialize=True))
